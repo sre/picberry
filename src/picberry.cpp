@@ -44,6 +44,7 @@
 #include "devices/dspic33e.h"
 #include "devices/pic10f322.h"
 #include "devices/pic18fj.h"
+#include "devices/pic18fxxk80.h"
 #include "devices/pic24fjxxxga0xx.h"
 #include "devices/pic24fjxxxga3xx.h"
 #include "devices/pic24fjxxga1xx_gb0xx.h"
@@ -246,6 +247,8 @@ int main(int argc, char *argv[])
             pic = new pic10f322();
         else if(strcmp(family,"pic18fj") == 0)
             pic = new pic18fj();
+        else if(strcmp(family,"pic18fxxk80") == 0)
+            pic = new pic18fxxk80();
         else if(strcmp(family,"pic24fjxxxga0xx") == 0)
             pic = new pic24fjxxxga0xx();
         else if(strcmp(family,"pic24fjxxxga3xx") == 0)
@@ -290,6 +293,7 @@ int main(int argc, char *argv[])
 		 << "- pic24fxxka1xx" << endl 
 		 << "- pic10f322" << endl
                  << "- pic18fj" << endl
+                 << "- pic18fxxk80" << endl
                  << "- pic32mx1" << endl
                  << "- pic32mx2" << endl
                  << "- pic32mx3" << endl
