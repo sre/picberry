@@ -3,7 +3,7 @@
 #
 #
 CC = $(CROSS_COMPILE)g++
-CFLAGS = -Wall -O2 -s -std=c++11
+CFLAGS += -Wall -O2 -s -std=c++11
 TARGET = picberry
 PREFIX = /usr
 BINDIR = $(PREFIX)/bin
