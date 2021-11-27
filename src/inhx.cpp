@@ -147,9 +147,13 @@ unsigned int read_inhx(char *infile, memory *mem, uint32_t offset)
                     if (flags.debug)
                         fprintf(stderr, " @0x%08X\n", extended_address/2+i);
 
-                    mem->location[extended_address/2 + i - offset/2] = data;
-                    mem->filled[extended_address/2 + i - offset/2] = 1;
-                    filled_locations++;
+                    if (mem->program_memory_size > extended_address/2 + i - offset/2) {
+                        mem->location[extended_address/2 + i - offset/2] = data;
+                        mem->filled[extended_address/2 + i - offset/2] = 1;
+                        filled_locations++;
+                    } else {
+                        fprintf(stderr, " Input Hexfile contains out of range memory data (addr=0x%08X); ignored!\n", (extended_address/2 + i - offset/2)*2);
+                    }
                 }
               if (byte_count % 2) {
                 nread = sscanf(&line[9+4*i], "%2hx", &data);
@@ -164,9 +168,13 @@ unsigned int read_inhx(char *infile, memory *mem, uint32_t offset)
                     if (flags.debug)
                         fprintf(stderr, " @0x%08X\n", extended_address/2+i);
 
-                    mem->location[extended_address/2 + i - offset/2] = data;
-                    mem->filled[extended_address/2 + i - offset/2] = 1;
-                    filled_locations++;
+                    if (mem->program_memory_size > extended_address/2 + i - offset/2) {
+                        mem->location[extended_address/2 + i - offset/2] = data;
+                        mem->filled[extended_address/2 + i - offset/2] = 1;
+                        filled_locations++;
+                    } else {
+                        fprintf(stderr, " Input Hexfile contains out of range memory data (addr=0x%08X); ignored!\n", (extended_address/2 + i - offset/2)*2);
+                    }
               }
             }
 
