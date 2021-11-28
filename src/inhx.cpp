@@ -169,7 +169,7 @@ unsigned int read_inhx(char *infile, memory *mem, uint32_t offset)
                         fprintf(stderr, " @0x%08X\n", extended_address/2+i);
 
                     if (mem->program_memory_size > extended_address/2 + i - offset/2) {
-                        mem->location[extended_address/2 + i - offset/2] = data;
+                        mem->location[extended_address/2 + i - offset/2] = 0xff00 | data;
                         mem->filled[extended_address/2 + i - offset/2] = 1;
                         filled_locations++;
                     } else {
