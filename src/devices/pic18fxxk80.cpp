@@ -68,13 +68,15 @@
 #define ERASE_CODE_BLOCK_1					0x800204
 #define ERASE_CODE_BLOCK_2					0x800404
 #define ERASE_CODE_BLOCK_3					0x800804
+#define ERASE_CODE_BLOCK_4					0x801004
+#define ERASE_CODE_BLOCK_5					0x802004
+#define ERASE_CODE_BLOCK_6					0x804004
+#define ERASE_CODE_BLOCK_7					0x808004
 
-#define LOCATION_MAX_CODE					0x00FFFF
 #define LOCATION_USERID						0x200000
 #define LOCATION_CONFIG						0x300000
 #define LOCATION_DEVID						0x3FFFFE
 
-#define WRITE_BUFFER_SIZE					64
 #define EEPROM_SIZE							1024
 
 /*
@@ -274,6 +276,8 @@ bool pic18fxxk80::read_device_id(void)
 			mem.program_memory_size = 0x3FFFFF;
 			mem.location = (uint16_t*) calloc(mem.program_memory_size, sizeof(uint16_t));
 			mem.filled = (bool*) calloc(mem.program_memory_size, sizeof(bool));
+			write_buffer_size = piclist[i].write_buffer_size;
+			block_count = piclist[i].block_count;
 			found = 1;
 			break;
 		}
@@ -298,7 +302,7 @@ uint8_t pic18fxxk80::blank_check(void)
 
 	goto_mem_location(0x000000);
 
-	for (addr = 0; (2*addr) < LOCATION_MAX_CODE; addr++) {
+	for (addr = 0; (2*addr) < mem.code_memory_size; addr++) {
 		send_cmd(COMM_TABLE_READ_POST_INC);
 		data = read_data();
 		send_cmd(COMM_TABLE_READ_POST_INC);
@@ -310,8 +314,8 @@ uint8_t pic18fxxk80::blank_check(void)
 			break;
 		}
 
-		if (lcounter != (2*addr*100/LOCATION_MAX_CODE)) {
-			lcounter = 2*addr*100/LOCATION_MAX_CODE;
+		if (lcounter != (2*addr*100/mem.code_memory_size)) {
+			lcounter = 2*addr*100/mem.code_memory_size;
 			if (!flags.debug) fprintf(stderr, "\b\b\b\b\b[%2d%%]", lcounter);
 		}
 	}
@@ -352,6 +356,30 @@ void pic18fxxk80::block_erase(uint32_t address)
 	delay_us(DELAY_P10);
 }
 
+void pic18fxxk80::block_erase_data(void)
+{
+	if (block_count >= 4) {
+		if (flags.debug) cerr << " - Erasing Block 0...\n";
+		block_erase(ERASE_CODE_BLOCK_0);
+		if (flags.debug) cerr << " - Erasing Block 1...\n";
+		block_erase(ERASE_CODE_BLOCK_1);
+		if (flags.debug) cerr << " - Erasing Block 2...\n";
+		block_erase(ERASE_CODE_BLOCK_2);
+		if (flags.debug) cerr << " - Erasing Block 3...\n";
+		block_erase(ERASE_CODE_BLOCK_3);
+	}
+	if (block_count >= 8) {
+		if (flags.debug) cerr << " - Erasing Block 4...\n";
+		block_erase(ERASE_CODE_BLOCK_4);
+		if (flags.debug) cerr << " - Erasing Block 5...\n";
+		block_erase(ERASE_CODE_BLOCK_5);
+		if (flags.debug) cerr << " - Erasing Block 6...\n";
+		block_erase(ERASE_CODE_BLOCK_6);
+		if (flags.debug) cerr << " - Erasing Block 7...\n";
+		block_erase(ERASE_CODE_BLOCK_7);
+	}
+}
+
 /* Bulk erase the chip */
 void pic18fxxk80::bulk_erase(void)
 {
@@ -361,27 +389,14 @@ void pic18fxxk80::bulk_erase(void)
 		if (flags.debug) cerr << " - Erasing Boot block...\n";
 		block_erase(ERASE_BOOT_BLOCK);
 	} else if (flags.program_only) {
-		if (flags.debug) cerr << " - Erasing Block 0...\n";
-		block_erase(ERASE_CODE_BLOCK_0);
-		if (flags.debug) cerr << " - Erasing Block 1...\n";
-		block_erase(ERASE_CODE_BLOCK_1);
-		if (flags.debug) cerr << " - Erasing Block 2...\n";
-		block_erase(ERASE_CODE_BLOCK_2);
-		if (flags.debug) cerr << " - Erasing Block 3...\n";
-		block_erase(ERASE_CODE_BLOCK_3);
+		block_erase_data();
 	} else {
 		if (flags.debug) cerr << " - Erasing Boot block...\n";
 		block_erase(ERASE_BOOT_BLOCK);
 		if (flags.debug) cerr << " - Erasing Config bits...\n";
 		block_erase(ERASE_CONFIG_BITS);
-		if (flags.debug) cerr << " - Erasing Block 0...\n";
-		block_erase(ERASE_CODE_BLOCK_0);
-		if (flags.debug) cerr << " - Erasing Block 1...\n";
-		block_erase(ERASE_CODE_BLOCK_1);
-		if (flags.debug) cerr << " - Erasing Block 2...\n";
-		block_erase(ERASE_CODE_BLOCK_2);
-		if (flags.debug) cerr << " - Erasing Block 3...\n";
-		block_erase(ERASE_CODE_BLOCK_3);
+
+		block_erase_data();
 	}
 
 	if(flags.client) fprintf(stdout, "@FIN");
@@ -491,7 +506,7 @@ void pic18fxxk80::read(char *outfile, uint32_t start, uint32_t count)
 
 	goto_mem_location(0x000000);
 
-	for (addr = 0; addr*2 < LOCATION_MAX_CODE; addr++) {
+	for (addr = 0; addr*2 < mem.code_memory_size; addr++) {
 		send_cmd(COMM_TABLE_READ_POST_INC);
 		data = read_data();
 		send_cmd(COMM_TABLE_READ_POST_INC);
@@ -505,8 +520,8 @@ void pic18fxxk80::read(char *outfile, uint32_t start, uint32_t count)
 			mem.filled[addr] = 1;
 		}
 
-		if (lcounter != 2*addr*100/LOCATION_MAX_CODE) {
-			lcounter = 2*addr*100/LOCATION_MAX_CODE;
+		if (lcounter != 2*addr*100/mem.code_memory_size) {
+			lcounter = 2*addr*100/mem.code_memory_size;
 			if (flags.client)
 				fprintf(stderr,"RED@%2d\n", lcounter);
 			if (!flags.debug)
@@ -557,8 +572,8 @@ void pic18fxxk80::write_code()
 
 	goto_mem_location(0);
 
-	for (addr = 0; (addr*2) < LOCATION_MAX_CODE; addr += WRITE_BUFFER_SIZE/2) {        /* address in WORDS (2 Bytes) */
-		for (i=0; i<31; i++) {		                        /* write the first 62 bytes */
+	for (addr = 0; (addr*2) < mem.code_memory_size; addr += write_buffer_size/2) {        /* address in WORDS (2 Bytes) */
+		for (i=0; i<(write_buffer_size/2-1); i++) {		                        /* write all but the last word */
 			if (mem.filled[addr+i]) {
 				if (flags.debug)
 					fprintf(stderr, "  Writing 0x%04X to address 0x%06X \n", mem.location[addr + i], (addr+i)*2 );
@@ -570,22 +585,22 @@ void pic18fxxk80::write_code()
 			};
 		}
 
-		/* write the last 2 bytes and start programming */
-		if (mem.filled[addr+31]) {
+		/* write the last word (2 bytes) and start programming */
+		if (mem.filled[addr+(write_buffer_size/2-1)]) {
 			if (flags.debug)
-				fprintf(stderr, "  Writing 0x%04X to address 0x%06X and then start programming...\n", mem.location[addr+31], (addr+31)*2);
-			send_instruction(COMM_TABLE_WRITE_STARTP_POST_INC_2, mem.location[addr+31]);
+				fprintf(stderr, "  Writing 0x%04X to address 0x%06X and then start programming...\n", mem.location[addr+(write_buffer_size/2-1)], (addr+(write_buffer_size/2-1))*2);
+			send_instruction(COMM_TABLE_WRITE_STARTP_POST_INC_2, mem.location[addr+(write_buffer_size/2-1)]);
 		} else {
 			if (flags.debug)
-				fprintf(stderr, "  Writing 0xFFFF to address 0x%06X and then start programming...\n", (addr+31)*2);
+				fprintf(stderr, "  Writing 0xFFFF to address 0x%06X and then start programming...\n", (addr+(write_buffer_size/2-1))*2);
 			send_instruction(COMM_TABLE_WRITE_STARTP_POST_INC_2, 0xFFFF);
 		};
 
 		/* Programming Sequence */
 		programming_sequence();
 
-		if (lcounter != addr*2*100/LOCATION_MAX_CODE) {
-			lcounter = addr*2*100/LOCATION_MAX_CODE;
+		if (lcounter != addr*2*100/mem.code_memory_size) {
+			lcounter = addr*2*100/mem.code_memory_size;
 			if(flags.client)
 				fprintf(stdout,"@%03d", lcounter);
 			if(!flags.debug)
@@ -604,7 +619,7 @@ void pic18fxxk80::write_code()
 
 		goto_mem_location(0x000000);
 
-		for (addr = 0; (addr*2) < LOCATION_MAX_CODE; addr++) {
+		for (addr = 0; (addr*2) < mem.code_memory_size; addr++) {
 			send_cmd(COMM_TABLE_READ_POST_INC);
 			data = read_data();
 			send_cmd(COMM_TABLE_READ_POST_INC);
@@ -619,8 +634,8 @@ void pic18fxxk80::write_code()
 						addr*2, data, mem.location[addr]);
 				break;
 			}
-			if (lcounter != addr*2*100/LOCATION_MAX_CODE) {
-				lcounter = addr*2*100/LOCATION_MAX_CODE;
+			if (lcounter != addr*2*100/mem.code_memory_size) {
+				lcounter = addr*2*100/mem.code_memory_size;
 				if(flags.client)
 					fprintf(stdout,"@%03d", lcounter);
 				if(!flags.debug)
