@@ -390,11 +390,15 @@ void pic18fxxk80::bulk_erase(void)
 		block_erase(ERASE_BOOT_BLOCK);
 	} else if (flags.program_only) {
 		block_erase_data();
+	} else if (flags.eeprom_only) {
+		if (flags.debug) cerr << " - Erasing EEPROM...\n";
+		eeprom_erase();
 	} else {
-		if (flags.debug) cerr << " - Erasing Boot block...\n";
-		block_erase(ERASE_BOOT_BLOCK);
+		/* no need to erase EEPROM, it is erased when any block is erased */
 		if (flags.debug) cerr << " - Erasing Config bits...\n";
 		block_erase(ERASE_CONFIG_BITS);
+		if (flags.debug) cerr << " - Erasing Boot block...\n";
+		block_erase(ERASE_BOOT_BLOCK);
 
 		block_erase_data();
 	}

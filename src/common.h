@@ -64,6 +64,7 @@ struct flags_struct {
    int noverify = 0;
    int boot_only = 0;
    int program_only = 0;
+   int eeprom_only = 0;
    int fulldump = 0;
 };
 

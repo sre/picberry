@@ -117,6 +117,7 @@ int main(int argc, char *argv[])
             {"noverify",    no_argument,       &flags.noverify,     1},
             {"boot-only",   no_argument,       &flags.boot_only,    1},
             {"program-only",no_argument,       &flags.program_only, 1},
+            {"eeprom-only", no_argument,       &flags.eeprom_only,  1},
 	    {"fulldump",    no_argument,       &flags.fulldump,     1},
             {0, 0, 0, 0}
     };
@@ -471,6 +472,7 @@ void usage(void)
             "       --fulldump                            don't detect empty sections, make complete dump (PIC32)\n"
             "       --program-only                        read/write only program section (PIC32)\n"
             "       --boot-only                           read/write only boot section (PIC32)\n"
+            "       --eeprom-only                         read/write only eeprom (PIC18FxxKxx)\n"
             "\n"
             "\n"
             "   Runtime Options\n"
