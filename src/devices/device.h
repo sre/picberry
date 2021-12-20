@@ -59,6 +59,8 @@ class Pic{
 		virtual void read(char *outfile, uint32_t start=0, uint32_t count=0) = 0;
 		virtual void write(char *infile) = 0;
 		virtual uint8_t blank_check(void) = 0;
+		virtual void dump_user_id(void) = 0;
+		virtual void write_user_id(uint64_t uid) = 0;
 };
 
 #endif

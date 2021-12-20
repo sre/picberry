@@ -21,7 +21,9 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <inttypes.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 #include <iostream>
 
 #include "pic18fxxk80.h"
@@ -236,23 +238,6 @@ void pic18fxxk80::goto_mem_location2(uint8_t data)
 	send_instruction(COMM_CORE_INSTRUCTION, 0x6EF6);			/* MOVWF TBLPTRL */
 }
 
-void pic18fxxk80::dump_user_id(void)
-{
-	uint8_t id;
-	cout << "User IDs:" << endl;
-
-	goto_mem_location(LOCATION_CONFIG);
-
-	for (int i=1; i<8; i++) {
-		send_cmd(COMM_TABLE_READ_POST_INC);
-		id = read_data();
-
-		fprintf(stdout, " - ID Location %d: 0x%02x\n", i, id);
-	}
-
-	cout << endl;
-}
-
 /* Read PIC device id word, located at 0x3FFFFE:0x3FFFFF */
 bool pic18fxxk80::read_device_id(void)
 {
@@ -281,11 +266,6 @@ bool pic18fxxk80::read_device_id(void)
 			found = 1;
 			break;
 		}
-	}
-
-	if (found && flags.debug) {
-		cout << endl;
-		dump_user_id();
 	}
 
 	return found;
@@ -326,7 +306,30 @@ uint8_t pic18fxxk80::blank_check(void)
 
 }
 
-/* Block erase the chip */
+/* Row erase */
+void pic18fxxk80::row_erase(uint32_t address)
+{
+	int i;
+
+	/* step 1: direct access to code memory and enable writes */
+	send_instruction(COMM_CORE_INSTRUCTION, 0x8E7F);	/* BSF EECON1, EEPGD */
+	send_instruction(COMM_CORE_INSTRUCTION, 0x9C7F);	/* BCF EECON1, CFGS */
+	send_instruction(COMM_CORE_INSTRUCTION, 0x847F);	/* BSF EECON1, WREN */
+
+	/* step 2: point to first row in code memory */
+	goto_mem_location(address);
+
+	/* step 3: enable erase and erase single row */
+	send_instruction(COMM_CORE_INSTRUCTION, 0x887F);	/* BSF EECON1, FREE */
+	send_instruction(COMM_CORE_INSTRUCTION, 0x827F);	/* BSF EECON1, WR */
+	programming_sequence(true);
+
+	/* undocumented requirement, which is required for follow-up reprogramming */
+	for (i=0; i<10; i++)
+		send_instruction(COMM_CORE_INSTRUCTION, 0x0000);	/* NOP */
+}
+
+/* Block erase */
 void pic18fxxk80::block_erase(uint32_t address)
 {
 	uint16_t data;
@@ -463,7 +466,7 @@ void pic18fxxk80::eeprom_write_cell(uint16_t address, uint8_t data)
 	/* Step 7: Hold PGC low for time, P10 */
 	GPIO_CLR(pic_clk);
 	delay_us(DELAY_P10);
-	
+
 	/* Step 8: Disable writes */
 	send_instruction(COMM_CORE_INSTRUCTION, 0x947f);							/* BCF EECON1, WREN */
 }
@@ -538,7 +541,7 @@ void pic18fxxk80::read(char *outfile, uint32_t start, uint32_t count)
 	write_inhx(&mem, outfile);
 }
 
-void pic18fxxk80::programming_sequence()
+void pic18fxxk80::programming_sequence(bool cfg_word)
 {
 	uint8_t i;
 
@@ -551,7 +554,10 @@ void pic18fxxk80::programming_sequence()
 	}
 	GPIO_SET(pic_clk);
 
-	delay_us(DELAY_P9);        /* Programming time */
+	if (cfg_word)
+		delay_us(DELAY_P9A);       /* Programming time */
+	else
+		delay_us(DELAY_P9);        /* Programming time */
 
 	GPIO_CLR(pic_clk);
 	delay_us(DELAY_P10);
@@ -601,7 +607,7 @@ void pic18fxxk80::write_code()
 		};
 
 		/* Programming Sequence */
-		programming_sequence();
+		programming_sequence(false);
 
 		if (lcounter != addr*2*100/mem.code_memory_size) {
 			lcounter = addr*2*100/mem.code_memory_size;
@@ -703,12 +709,12 @@ void pic18fxxk80::configuration_register_write(uint8_t reg, uint16_t data)
 	/* write LSB */
 	goto_mem_location(LOCATION_CONFIG | (reg*2));
 	send_instruction(COMM_TABLE_WRITE_STARTP, data & 0xff);
-	programming_sequence();
+	programming_sequence(true);
 
 	/* write MSB */
 	goto_mem_location2((reg*2)+1);
 	send_instruction(COMM_TABLE_WRITE_STARTP, data & 0xff00);
-	programming_sequence();
+	programming_sequence(true);
 }
 
 void pic18fxxk80::write_configuration_registers()
@@ -731,4 +737,51 @@ void pic18fxxk80::write_configuration_registers()
 			}
 		}
 	}
+}
+
+void pic18fxxk80::dump_user_id(void)
+{
+	uint8_t data[8] = {0};
+
+	goto_mem_location(LOCATION_USERID);
+	for (int i=0; i<8; i++) {
+		send_cmd(COMM_TABLE_READ_POST_INC);
+		data[i] = read_data();
+	}
+
+	fprintf(stdout, "User ID: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+			data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+	cout << endl;
+}
+
+void pic18fxxk80::write_user_id(uint64_t uid)
+{
+	uint8_t data[8];
+
+	data[0] = (uid >> 56) & 0xFF;
+	data[1] = (uid >> 48) & 0xFF;
+	data[2] = (uid >> 40) & 0xFF;
+	data[3] = (uid >> 32) & 0xFF;
+	data[4] = (uid >> 24) & 0xFF;
+	data[5] = (uid >> 16) & 0xFF;
+	data[6] = (uid >>  8) & 0xFF;
+	data[7] = (uid >>  0) & 0xFF;
+
+	printf("Writing User ID: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+			data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]);
+
+	row_erase(LOCATION_USERID);
+
+	/* step 1: direct access to code memory and enable writes */
+	send_instruction(COMM_CORE_INSTRUCTION, 0x8E7F);	/* BSF EECON1, EEPGD */
+	send_instruction(COMM_CORE_INSTRUCTION, 0x9C7F);	/* BCF EECON1, CFGS */
+	send_instruction(COMM_CORE_INSTRUCTION, 0x847F);	/* BSF EECON1, WREN */
+
+	/* step 2: Load write buffer with 8 bytes and write */
+	goto_mem_location(LOCATION_USERID);
+	send_instruction(COMM_TABLE_WRITE_POST_INC_2, (data[1] << 8) | data[0]);
+	send_instruction(COMM_TABLE_WRITE_POST_INC_2, (data[3] << 8) | data[2]);
+	send_instruction(COMM_TABLE_WRITE_POST_INC_2, (data[5] << 8) | data[4]);
+	send_instruction(COMM_TABLE_WRITE_STARTP,     (data[7] << 8) | data[6]);
+	programming_sequence(true);
 }

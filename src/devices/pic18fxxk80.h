@@ -50,17 +50,20 @@ class pic18fxxk80: public Pic {
 		void eeprom_write(char *infile);
 		void eeprom_erase();
 
+		void dump_user_id(void);
+		void write_user_id(uint64_t uid);
+
 	protected:
-		void programming_sequence();
+		void programming_sequence(bool cfg_word);
 		void send_cmd(uint8_t cmd);
 		uint16_t read_data(void);
 		void write_data(uint16_t data);
 		void send_instruction(uint8_t cmd, uint16_t data);
 		void block_erase_data(void);
 		void block_erase(uint32_t address);
+		void row_erase(uint32_t address);
 		void goto_mem_location(uint32_t data);
 		void goto_mem_location2(uint8_t data);
-		void dump_user_id(void);
 		uint8_t eeprom_read_cell(uint16_t address);
 		void eeprom_write_cell(uint16_t address, uint8_t value);
 		void configuration_register_write(uint8_t reg, uint16_t data);

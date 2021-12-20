@@ -52,6 +52,8 @@ class pic32: public Pic{
 		void read(char *outfile, uint32_t start=0, uint32_t count=0);
 		void write(char *infile);
 		uint8_t blank_check(void);
+		void write_user_id(uint64_t){};
+		void dump_user_id(){};
 
 	protected:
 		uint8_t Data4Phase(uint8_t tdi, uint8_t tms);

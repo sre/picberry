@@ -64,14 +64,16 @@ int pic_data = DEFAULT_PIC_DATA;
 int pic_mclr = DEFAULT_PIC_MCLR;
 char pic_clk_port=0, pic_data_port=0, pic_mclr_port=0;
 
-#define FXN_NULL        0b00000000
-#define FXN_RESET       0b00000001
-#define FXN_SERVER      0b00000010
-#define FXN_READ        0b00000100
-#define FXN_WRITE       0b00001000
-#define FXN_ERASE       0b00010000
-#define FXN_BLANKCHEK   0b00100000
-#define FXN_REGDUMP     0b01000000
+#define FXN_NULL        0b000000000
+#define FXN_RESET       0b000000001
+#define FXN_SERVER      0b000000010
+#define FXN_READ        0b000000100
+#define FXN_WRITE       0b000001000
+#define FXN_ERASE       0b000010000
+#define FXN_BLANKCHEK   0b000100000
+#define FXN_REGDUMP     0b001000000
+#define FXN_DUMP_UID	0b010000000
+#define FXN_WRITE_UID	0b100000000
 
 /* Hardware delay function by Gordon's Projects - WiringPi */
 void delay_us (unsigned int howLong)
@@ -100,6 +102,7 @@ int main(int argc, char *argv[])
     int option_index = 0;
     int server_port = 15000;
     uint8_t retval = 0;
+	uint64_t userid = 0;
 
     static struct option long_options[] = {
             {"help",        no_argument,       0,           'h'},
@@ -113,6 +116,8 @@ int main(int argc, char *argv[])
             {"regdump",     no_argument,       0,           'd'},
             {"reset",       no_argument,       0,           'R'},
             {"log",         required_argument, 0,           'l'},
+			{"dump-user-id",no_argument,       0,           'u'},
+			{"write-user-id", required_argument, 0,         'U'},
             {"debug",       no_argument,       &flags.debug,        1},
             {"noverify",    no_argument,       &flags.noverify,     1},
             {"boot-only",   no_argument,       &flags.boot_only,    1},
@@ -171,6 +176,13 @@ int main(int argc, char *argv[])
                 break;
             case 'R':
                 function = FXN_RESET;
+                break;
+			case 'u':
+                function = FXN_DUMP_UID;
+                break;
+			case 'U':
+                function = FXN_WRITE_UID;
+				userid = std::stoull(optarg, nullptr, 16);
                 break;
             default:
                 cout << endl;
@@ -342,6 +354,16 @@ int main(int argc, char *argv[])
                 case FXN_REGDUMP:
                     pic->dump_configuration_registers();
                     break;
+				case FXN_DUMP_UID:
+                    cout << "Dump User ID...";
+					pic->dump_user_id();
+                    cout << "DONE!" << endl;
+					break;
+				case FXN_WRITE_UID:
+                    cout << "Write User ID...";
+					pic->write_user_id(userid);
+                    cout << "DONE!" << endl;
+					break;
                 default:
                     cout << endl << endl << "Please select only one option" <<
                     "between -d, -b, -r, -w, -e." << endl;
@@ -467,6 +489,8 @@ void usage(void)
             "       --erase,            -e                bulk erase chip\n"
             "       --blankcheck,       -b                blank check of the chip\n"
             "       --regdump,          -d                read configuration registers\n"
+            "       --dump-user-id,     -u                read user ID registers\n"
+            "       --write-user-id,    -U [8 hex bytes]  write user ID registers\n"
             "       --noverify                            skip memory verification after writing\n"
             "       --debug                               turn ON debug\n"
             "       --fulldump                            don't detect empty sections, make complete dump (PIC32)\n"
@@ -486,6 +510,7 @@ void usage(void)
             "       dspic33f    \n"
             "       pic10f322   \n"
             "       pic18fj     \n"
+            "       pic18fxxkxx \n"
             "       pic24fj     \n"
             "       pic24fjxxxga0xx \n"
             "       pic24fjxxxga3xx \n"

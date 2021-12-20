@@ -37,6 +37,8 @@ class pic24fjxxxga1_gb1 : public Pic {
 		void read(char *outfile, uint32_t start, uint32_t count);
 		void write(char *infile);
 		uint8_t blank_check(void);
+		void write_user_id(uint64_t){};
+		void dump_user_id(){};
 
 	protected:
 		void send_cmd(uint32_t cmd);
