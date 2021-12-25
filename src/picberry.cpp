@@ -339,7 +339,14 @@ int main(int argc, char *argv[])
                     cout << "DONE! " << endl;
                     break;
                 case FXN_ERASE:
-                	cout << "Bulk Erase...";
+					if (flags.boot_only)
+						cout << "Bulk Erase Boot Block...";
+					else if (flags.program_only)
+						cout << "Bulk Erase Program Block(s)...";
+					else if (flags.eeprom_only)
+						cout << "Bulk Erase EEPROM...";
+					else
+						cout << "Bulk Erase ALL...";
                     pic->bulk_erase();
                     cout << "DONE!" << endl;
                     break;
